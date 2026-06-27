@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import shutil
 from pathlib import Path
 from typing import Any
 
@@ -10,10 +11,20 @@ RUNS_ROOT = PROJECT_ROOT / "runs"
 
 def prepare_run_dir(cfg: dict[str, Any], runs_root: Path = RUNS_ROOT) -> Path:
     run_dir = runs_root / cfg["run_id"]
-    (run_dir / "run-agent").mkdir(parents=True, exist_ok=True)
-    (run_dir / "run-eval").mkdir(parents=True, exist_ok=True)
+    run_dir.mkdir(parents=True, exist_ok=True)
+    for subdir_name in ("run-agent", "run-eval"):
+        subdir = run_dir / subdir_name
+        if subdir.exists():
+            shutil.rmtree(subdir)
+        subdir.mkdir()
     (run_dir / "config.json").write_text(json.dumps(cfg, indent=2, sort_keys=True))
     return run_dir
+
+
+def write_metrics(run_dir: Path, metrics: dict[str, Any]) -> Path:
+    metrics_path = run_dir / "metrics.json"
+    metrics_path.write_text(json.dumps(metrics, indent=2, sort_keys=True))
+    return metrics_path
 
 
 def build_manifest(run_dir: Path, metrics: dict[str, Any], artifact_uri: str) -> dict[str, Any]:

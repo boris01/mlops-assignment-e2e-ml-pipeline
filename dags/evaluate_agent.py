@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import json
 import sys
 from datetime import datetime
 from pathlib import Path
@@ -16,7 +15,7 @@ from pipeline.agent import run_agent_batch
 from pipeline.config import build_run_config
 from pipeline.evaluation import run_swebench_eval
 from pipeline.metrics import collect_metrics
-from pipeline.paths import RUNS_ROOT, build_manifest, prepare_run_dir
+from pipeline.paths import RUNS_ROOT, build_manifest, prepare_run_dir, write_metrics
 from pipeline.tracking import log_mlflow_run
 
 
@@ -56,7 +55,7 @@ def evaluate_agent():
     def summarize_and_log(cfg: dict, eval_dir: str) -> dict:
         run_dir = RUNS_ROOT / cfg["run_id"]
         metrics = collect_metrics(Path(eval_dir))
-        (run_dir / "metrics.json").write_text(json.dumps(metrics, indent=2, sort_keys=True))
+        write_metrics(run_dir, metrics)
         artifact_uri = str(run_dir)
         build_manifest(run_dir, metrics, artifact_uri)
         try:
