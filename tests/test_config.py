@@ -34,6 +34,16 @@ def test_agent_config_defaults_to_sibling_clone():
     )
 
 
+def test_nullable_params_coerce_to_defaults():
+    # Airflow nullable params can arrive as None; must not break the command builders.
+    cfg = build_run_config(
+        {"split": "test", "subset": "verified", "workers": 1,
+         "eval_namespace": None, "agent_config": None}
+    )
+    assert cfg["eval_namespace"] == ""
+    assert cfg["agent_config"] == DEFAULT_AGENT_CONFIG
+
+
 def test_agent_config_explicit_override():
     cfg = build_run_config(
         {"split": "test", "subset": "verified", "workers": 1, "agent_config": "/custom/cfg.yaml"}

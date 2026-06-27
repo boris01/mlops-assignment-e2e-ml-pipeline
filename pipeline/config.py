@@ -45,6 +45,6 @@ def build_run_config(params: dict[str, Any]) -> dict[str, Any]:
         "model": params.get("model", "nebius/moonshotai/Kimi-K2.6"),
         "task_slice": params.get("task_slice", "0:3"),
         "cost_limit": int(params.get("cost_limit", 0)),
-        "eval_namespace": params.get("eval_namespace", ""),
+        "eval_namespace": params.get("eval_namespace") or "",
         "agent_config": (params.get("agent_config") or "").strip() or DEFAULT_AGENT_CONFIG,
     }

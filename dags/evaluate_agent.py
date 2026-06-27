@@ -32,9 +32,11 @@ from pipeline.tracking import log_mlflow_run
         "task_slice": Param("0:3", type="string"),
         "run_id": Param("", type="string"),
         "cost_limit": Param(0, type="integer"),
-        "eval_namespace": Param("", type="string"),
-        # Empty => default to the sibling mini-swe-agent clone (see pipeline/config.py).
-        "agent_config": Param("", type="string"),
+        # type includes "null" so the trigger form treats these as optional (empty allowed).
+        # Empty eval_namespace => build eval images locally (arm64).
+        "eval_namespace": Param("", type=["string", "null"]),
+        # Empty agent_config => default to the sibling mini-swe-agent clone (see pipeline/config.py).
+        "agent_config": Param("", type=["string", "null"]),
     },
 )
 def evaluate_agent():
