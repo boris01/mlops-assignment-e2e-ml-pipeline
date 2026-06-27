@@ -16,3 +16,6 @@ logs/
 mlflow.db
 mlruns/
 !runs/.gitkeep
+
+# SWE-bench harness writes its summary <model>.<run_id>.json to the repo root (cwd)
+/*__*.json
