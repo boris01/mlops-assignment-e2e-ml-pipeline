@@ -8,11 +8,13 @@ from typing import Any
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 
 
-def build_eval_command(cfg: dict[str, Any], preds_path: Path) -> list[str]:
+def build_eval_command(
+    cfg: dict[str, Any], preds_path: Path, runner: tuple[str, ...] = ("uv", "run")
+) -> list[str]:
+    # `runner` defaults to ("uv", "run") (project venv, any Airflow launch style).
+    # Pass runner=() in the DockerOperator path, where the venv is on the image PATH.
     return [
-        # `uv run` resolves python+swebench in the project venv regardless of how
-        # Airflow itself was launched (matches the provided example DAG).
-        "uv", "run", "python", "-m", "swebench.harness.run_evaluation",
+        *runner, "python", "-m", "swebench.harness.run_evaluation",
         "--dataset_name", cfg["dataset_name"],
         "--predictions_path", str(preds_path),
         "--max_workers", str(cfg["workers"]),
@@ -26,11 +28,17 @@ def run_swebench_eval(cfg: dict[str, Any], preds_path: Path, run_dir: Path) -> P
         raise FileNotFoundError(f"predictions missing or empty: {preds_path}")
     subprocess.run(build_eval_command(cfg, preds_path), cwd=PROJECT_ROOT, check=True)
     eval_dir = run_dir / "run-eval"
-    _collect_harness_outputs(cfg, eval_dir)
+    collect_harness_outputs(cfg, eval_dir)
     return eval_dir
 
 
-def _collect_harness_outputs(cfg: dict[str, Any], eval_dir: Path) -> None:
+def collect_harness_outputs(cfg: dict[str, Any], eval_dir: Path) -> None:
+    """Copy the SWE-bench harness output (written under PROJECT_ROOT) into eval_dir.
+
+    Used by the subprocess path (run_swebench_eval) and by the DockerOperator path,
+    where the eval container writes the harness output to the shared bind mount and
+    the worker copies it into the run folder afterward.
+    """
     # Harness writes per-instance logs+reports under ./logs/run_evaluation/<run_id>/...
     logs_src = PROJECT_ROOT / "logs" / "run_evaluation" / cfg["run_id"]
     logs_dst = eval_dir / "logs"

@@ -8,11 +8,14 @@ from typing import Any
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 
 
-def build_agent_command(cfg: dict[str, Any], run_agent_dir: Path) -> list[str]:
+def build_agent_command(
+    cfg: dict[str, Any], run_agent_dir: Path, runner: tuple[str, ...] = ("uv", "run")
+) -> list[str]:
+    # `runner` defaults to ("uv", "run") so the command resolves in the project venv
+    # regardless of how Airflow was launched (matches the provided example DAG). Pass
+    # runner=() in the DockerOperator path, where the venv is already on the image PATH.
     return [
-        # `uv run` resolves the command in the project venv regardless of how Airflow
-        # itself was launched (matches the provided example DAG).
-        "uv", "run", "mini-extra", "swebench",
+        *runner, "mini-extra", "swebench",
         "--subset", cfg["subset"],
         "--split", cfg["split"],
         "--model", cfg["model"],
