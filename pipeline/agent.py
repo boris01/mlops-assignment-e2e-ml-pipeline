@@ -10,7 +10,9 @@ PROJECT_ROOT = Path(__file__).resolve().parents[1]
 
 def build_agent_command(cfg: dict[str, Any], run_agent_dir: Path) -> list[str]:
     return [
-        "mini-extra", "swebench",
+        # `uv run` resolves the command in the project venv regardless of how Airflow
+        # itself was launched (matches the provided example DAG).
+        "uv", "run", "mini-extra", "swebench",
         "--subset", cfg["subset"],
         "--split", cfg["split"],
         "--model", cfg["model"],

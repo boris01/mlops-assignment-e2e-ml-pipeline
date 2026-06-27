@@ -8,7 +8,7 @@ def test_build_eval_command_uses_config_values():
         "workers": 5, "run_id": "r1", "eval_namespace": "",
     }
     cmd = build_eval_command(cfg, Path("/runs/r1/run-agent/preds.json"))
-    assert cmd[:3] == ["python", "-m", "swebench.harness.run_evaluation"]
+    assert cmd[:5] == ["uv", "run", "python", "-m", "swebench.harness.run_evaluation"]
     assert "--dataset_name" in cmd and "princeton-nlp/SWE-bench_Verified" in cmd
     assert "--predictions_path" in cmd and "/runs/r1/run-agent/preds.json" in cmd
     assert "--max_workers" in cmd and "5" in cmd

@@ -9,7 +9,7 @@ def test_build_agent_command_uses_config_values():
         "agent_config": "/clone/mini-swe-agent/src/minisweagent/config/benchmarks/swebench.yaml",
     }
     cmd = build_agent_command(cfg, Path("/runs/r1/run-agent"))
-    assert cmd[:2] == ["mini-extra", "swebench"]
+    assert cmd[:4] == ["uv", "run", "mini-extra", "swebench"]
     assert "--subset" in cmd and "verified" in cmd
     assert "--slice" in cmd and "0:3" in cmd
     assert "--workers" in cmd and "5" in cmd

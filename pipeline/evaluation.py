@@ -10,7 +10,9 @@ PROJECT_ROOT = Path(__file__).resolve().parents[1]
 
 def build_eval_command(cfg: dict[str, Any], preds_path: Path) -> list[str]:
     return [
-        "python", "-m", "swebench.harness.run_evaluation",
+        # `uv run` resolves python+swebench in the project venv regardless of how
+        # Airflow itself was launched (matches the provided example DAG).
+        "uv", "run", "python", "-m", "swebench.harness.run_evaluation",
         "--dataset_name", cfg["dataset_name"],
         "--predictions_path", str(preds_path),
         "--max_workers", str(cfg["workers"]),
