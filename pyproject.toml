@@ -5,11 +5,14 @@ description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
+    "apache-airflow>=3.2.2",
     "mini-swe-agent>=2.4.1",
     "swebench>=4.1.0",
+    "mlflow>=2.16",
 ]
 
 [dependency-groups]
 dev = [
     "ruff>=0.15.17",
+    "pytest>=8.0",
 ]
