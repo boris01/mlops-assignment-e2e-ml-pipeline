@@ -33,6 +33,8 @@ from pipeline.tracking import log_mlflow_run
         "run_id": Param("", type="string"),
         "cost_limit": Param(0, type="integer"),
         "eval_namespace": Param("", type="string"),
+        # Empty => default to the sibling mini-swe-agent clone (see pipeline/config.py).
+        "agent_config": Param("", type="string"),
     },
 )
 def evaluate_agent():

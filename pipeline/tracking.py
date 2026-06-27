@@ -22,6 +22,7 @@ def log_mlflow_run(cfg: dict[str, Any], metrics: dict[str, Any], artifact_uri: s
             "task_slice": cfg["task_slice"],
             "cost_limit": cfg["cost_limit"],
             "eval_namespace": cfg["eval_namespace"],
+            "agent_config": cfg["agent_config"],
         })
         mlflow.log_metrics({
             "resolved_count": float(metrics["resolved_count"]),

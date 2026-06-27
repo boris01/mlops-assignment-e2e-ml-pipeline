@@ -9,7 +9,7 @@ def test_log_mlflow_run_writes_params_and_metrics(tmp_path, monkeypatch):
         "run_id": "r1", "split": "test", "subset": "verified",
         "dataset_name": "princeton-nlp/SWE-bench_Verified", "workers": 5,
         "model": "nebius/moonshotai/Kimi-K2.6", "task_slice": "0:3",
-        "cost_limit": 0, "eval_namespace": "",
+        "cost_limit": 0, "eval_namespace": "", "agent_config": "/clone/swebench.yaml",
     }
     metrics = {"resolved_count": 1, "total": 3, "resolve_rate": 0.3333}
     log_mlflow_run(cfg, metrics, "file:///runs/r1")

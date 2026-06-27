@@ -6,7 +6,6 @@ from pathlib import Path
 from typing import Any
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
-SWEBENCH_CONFIG = PROJECT_ROOT / "configs" / "swebench.yaml"
 
 
 def build_agent_command(cfg: dict[str, Any], run_agent_dir: Path) -> list[str]:
@@ -17,12 +16,19 @@ def build_agent_command(cfg: dict[str, Any], run_agent_dir: Path) -> list[str]:
         "--model", cfg["model"],
         "--slice", cfg["task_slice"],
         "--workers", str(cfg["workers"]),
-        "--config", str(SWEBENCH_CONFIG),
+        "--config", cfg["agent_config"],
         "-o", str(run_agent_dir),
     ]
 
 
 def run_agent_batch(cfg: dict[str, Any], run_dir: Path) -> Path:
+    agent_config = Path(cfg["agent_config"])
+    if not agent_config.exists():
+        raise FileNotFoundError(
+            f"agent config not found: {agent_config}. Clone mini-swe-agent as a "
+            "sibling of this repo (git clone https://github.com/SWE-agent/mini-swe-agent.git), "
+            "or pass an explicit `agent_config` path."
+        )
     run_agent_dir = run_dir / "run-agent"
     run_agent_dir.mkdir(parents=True, exist_ok=True)
     env = {**os.environ, "MSWEA_COST_TRACKING": "ignore_errors"}

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime, timezone
+from pathlib import Path
 from typing import Any
 
 DATASET_BY_SUBSET = {
@@ -8,6 +9,18 @@ DATASET_BY_SUBSET = {
     "lite": "princeton-nlp/SWE-bench_Lite",
     "full": "princeton-nlp/SWE-bench",
 }
+
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+# mini-swe-agent is cloned as a sibling of this repo (see README setup).
+DEFAULT_AGENT_CONFIG = str(
+    PROJECT_ROOT.parent
+    / "mini-swe-agent"
+    / "src"
+    / "minisweagent"
+    / "config"
+    / "benchmarks"
+    / "swebench.yaml"
+)
 
 
 def _default_run_id(subset: str, split: str) -> str:
@@ -33,4 +46,5 @@ def build_run_config(params: dict[str, Any]) -> dict[str, Any]:
         "task_slice": params.get("task_slice", "0:3"),
         "cost_limit": int(params.get("cost_limit", 0)),
         "eval_namespace": params.get("eval_namespace", ""),
+        "agent_config": (params.get("agent_config") or "").strip() or DEFAULT_AGENT_CONFIG,
     }

@@ -6,6 +6,7 @@ def test_build_agent_command_uses_config_values():
     cfg = {
         "subset": "verified", "split": "test", "model": "nebius/moonshotai/Kimi-K2.6",
         "task_slice": "0:3", "workers": 5,
+        "agent_config": "/clone/mini-swe-agent/src/minisweagent/config/benchmarks/swebench.yaml",
     }
     cmd = build_agent_command(cfg, Path("/runs/r1/run-agent"))
     assert cmd[:2] == ["mini-extra", "swebench"]
@@ -13,4 +14,5 @@ def test_build_agent_command_uses_config_values():
     assert "--slice" in cmd and "0:3" in cmd
     assert "--workers" in cmd and "5" in cmd
     assert cmd[-2:] == ["-o", "/runs/r1/run-agent"]
-    assert "--config" in cmd  # vendored configs/swebench.yaml
+    # --config points at the configured agent-config path (the mini-swe-agent clone)
+    assert cmd[cmd.index("--config") + 1] == cfg["agent_config"]

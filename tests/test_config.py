@@ -1,6 +1,6 @@
 import re
 import pytest
-from pipeline.config import build_run_config, DATASET_BY_SUBSET
+from pipeline.config import build_run_config, DATASET_BY_SUBSET, DEFAULT_AGENT_CONFIG
 
 
 def test_derives_dataset_and_passes_through_values():
@@ -24,3 +24,18 @@ def test_generates_run_id_when_blank():
 def test_unknown_subset_raises():
     with pytest.raises(ValueError):
         build_run_config({"split": "test", "subset": "bogus", "workers": 1})
+
+
+def test_agent_config_defaults_to_sibling_clone():
+    cfg = build_run_config({"split": "test", "subset": "verified", "workers": 1})
+    assert cfg["agent_config"] == DEFAULT_AGENT_CONFIG
+    assert cfg["agent_config"].endswith(
+        "mini-swe-agent/src/minisweagent/config/benchmarks/swebench.yaml"
+    )
+
+
+def test_agent_config_explicit_override():
+    cfg = build_run_config(
+        {"split": "test", "subset": "verified", "workers": 1, "agent_config": "/custom/cfg.yaml"}
+    )
+    assert cfg["agent_config"] == "/custom/cfg.yaml"
