@@ -23,6 +23,19 @@ def test_build_manifest_points_to_existing_files(tmp_path):
     assert (run_dir / "manifest.json").exists()
 
 
+def test_build_manifest_discovers_trajectory_files(tmp_path):
+    # mini-swe-agent writes run-agent/<instance_id>/<instance_id>.traj.json
+    cfg = {"run_id": "r3"}
+    run_dir = prepare_run_dir(cfg, runs_root=tmp_path)
+    inst_dir = run_dir / "run-agent" / "astropy__astropy-12907"
+    inst_dir.mkdir()
+    (inst_dir / "astropy__astropy-12907.traj.json").write_text("{}")
+    manifest = build_manifest(run_dir, {}, "s3://b/r3")
+    assert manifest["files"]["trajectories"] == [
+        "run-agent/astropy__astropy-12907/astropy__astropy-12907.traj.json"
+    ]
+
+
 def test_write_metrics_roundtrip(tmp_path):
     run_dir = tmp_path / "run1"
     run_dir.mkdir()

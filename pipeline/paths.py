@@ -31,13 +31,18 @@ def build_manifest(run_dir: Path, metrics: dict[str, Any], artifact_uri: str) ->
     def rel(p: Path):
         return str(p.relative_to(run_dir)) if p.exists() else None
 
+    # mini-swe-agent writes trajectories as run-agent/<instance_id>/<instance_id>.traj.json
+    traj_files = sorted(
+        str(p.relative_to(run_dir)) for p in (run_dir / "run-agent").rglob("*.traj.json")
+    )
+
     manifest = {
         "run_id": run_dir.name,
         "artifact_uri": artifact_uri,
         "files": {
             "config": rel(run_dir / "config.json"),
             "preds": rel(run_dir / "run-agent" / "preds.json"),
-            "trajectories": rel(run_dir / "run-agent" / "trajectories"),
+            "trajectories": traj_files or None,
             "eval_logs": rel(run_dir / "run-eval" / "logs"),
             "eval_reports": rel(run_dir / "run-eval" / "reports"),
             "metrics": rel(run_dir / "metrics.json"),
