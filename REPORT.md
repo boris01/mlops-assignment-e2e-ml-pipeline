@@ -1,0 +1,156 @@
+# Report: Configurable Airflow Evaluation Pipeline for Coding-Agent Experiments
+
+Turns the ad-hoc `scripts/*.sh` into a configurable, reproducible Airflow pipeline that runs
+mini-swe-agent on a SWE-bench subset, evaluates the patches, writes a structured run folder, and
+logs the run to MLflow.
+
+## Architecture
+
+One Airflow DAG, `evaluate_agent` (`dags/evaluate_agent.py`), with four TaskFlow tasks in a
+linear chain:
+
+```
+prepare_run -> run_agent -> run_eval -> summarize_and_log
+```
+
+The DAG is thin orchestration only; all logic lives in a unit-tested `pipeline/` package so it can
+be tested without Airflow and reused across deployment styles.
+
+| Task | Calls | Produces |
+|---|---|---|
+| `prepare_run` | `build_run_config`, `prepare_run_dir` | `runs/<run-id>/config.json` + empty `run-agent/`, `run-eval/` |
+| `run_agent` | `run_agent_batch` | trajectories + `preds.json` under `run-agent/` |
+| `run_eval` | `run_swebench_eval` | SWE-bench logs + reports under `run-eval/` |
+| `summarize_and_log` | `collect_metrics`, `write_metrics`, `build_manifest`, `log_mlflow_run` | `metrics.json`, `manifest.json`, MLflow run |
+
+`pipeline/` modules: `config.py` (resolve params, derive dataset), `paths.py` (run dir, manifest,
+metrics write), `agent.py` (mini-swe-agent command + runner), `evaluation.py` (SWE-bench command +
+runner + output collection), `metrics.py` (parse reports), `tracking.py` (MLflow).
+
+The DAG, helper signatures (`build_run_config`, `prepare_run_dir`, `run_agent_batch`,
+`run_swebench_eval`, `collect_metrics`, `log_mlflow_run`), and task names follow the README's
+"Suggested Implementation Path" verbatim.
+
+## How to trigger the DAG
+
+Prerequisites: Docker running, `NEBIUS_API_KEY` in the environment, `uv` installed, and the
+**mini-swe-agent repo cloned as a sibling** of this repo:
+
+```bash
+cd ..
+git clone https://github.com/SWE-agent/mini-swe-agent.git
+git clone https://github.com/swe-bench/SWE-bench.git   # reference
+cd mlops-assignment-e2e-ml-pipeline
+uv sync
+```
+
+Start Airflow (standalone) and MLflow from a shell where `NEBIUS_API_KEY` is set:
+
+```bash
+export MLFLOW_TRACKING_URI="file://$(pwd)/mlruns"   # optional; for the MLflow UI
+export MLFLOW_ALLOW_FILE_STORE=true
+uv run mlflow server --backend-store-uri file://$(pwd)/mlruns &   # optional UI at :5000
+bash run-airflow-standalone.sh                                    # admin/admin at :8080
+```
+
+In the Airflow UI, open **`evaluate_agent`** -> **Trigger DAG w/ config**, e.g.:
+
+```json
+{"task_slice": "0:1", "workers": 1}
+```
+
+Parameters (all configurable from the trigger form; no hard-coded experiment values):
+
+| Param | Required | Default | Notes |
+|---|---|---|---|
+| `split` | yes | `test` | SWE-bench split |
+| `subset` | yes | `verified` | `verified` / `lite` / `full`; `dataset_name` is derived from it |
+| `workers` | yes | `5` | parallelism for agent + eval |
+| `model` | no | `nebius/moonshotai/Kimi-K2.6` | any litellm/Nebius model id |
+| `task_slice` | no | `0:3` | instance slice (keep tiny while iterating) |
+| `run_id` | no | timestamp | folder + MLflow run name; pass explicitly to reproduce |
+| `cost_limit` | no | `0` | provenance only (the agent config carries the real cap) |
+| `eval_namespace` | no | `""` (empty) | empty = build eval images locally (arm64); `swebench` = pull prebuilt (amd64) |
+| `agent_config` | no | sibling clone path | mini-swe-agent benchmark config; override to point elsewhere |
+
+## Artifact layout
+
+Every run writes a self-contained, zippable tree:
+
+```
+runs/<run-id>/
+  config.json        # fully-resolved config (provenance)
+  run-agent/
+    preds.json
+    <instance_id>/<instance_id>.traj.json   # mini-swe-agent trajectory
+    minisweagent.log
+  run-eval/
+    logs/<model_slug>/<instance_id>/report.json   # per-instance SWE-bench reports
+    reports/<model_slug>.<run-id>.json            # harness summary
+  metrics.json       # resolved_count, total, resolve_rate, per_instance
+  manifest.json      # pointers to all key files + artifact_uri + metrics summary
+```
+
+`manifest.json` is the index: hand someone the `runs/<run-id>/` folder and they can reconstruct
+the whole run (inputs, config, trajectories, predictions, eval logs/reports, metrics).
+
+## MLflow tracking
+
+`summarize_and_log` logs to the `swe-bench-eval` experiment: all params (incl. `model`,
+`dataset_name`, `task_slice`, `eval_namespace`, `agent_config`), metrics (`resolved_count`,
+`total`, `resolve_rate`), the `run_id` as the run name, and the artifact path as a tag. MLflow
+logging is wrapped log-and-continue, so a tracking outage never destroys a completed run folder.
+Multiple runs are therefore directly comparable in the MLflow UI.
+
+> Screenshots: `screenshots/airflow_dag.png`, `screenshots/mlflow_runs.png` (add after a UI run).
+
+## Completed run
+
+Triggered via the Airflow UI; all four tasks green.
+
+- **run_id:** `Eval_Test`
+- **config:** `subset=verified`, `split=test`, `workers=1`, `task_slice=0:1`,
+  `model=nebius/moonshotai/Kimi-K2.6`, `eval_namespace=""` (local arm64 build)
+- **instance:** `astropy__astropy-12907`
+- **result:** **resolved 1 / 1** (resolve_rate 1.0) — the model's patch passed the real
+  FAIL_TO_PASS + PASS_TO_PASS unit tests
+- **artifacts:** complete `runs/Eval_Test/` tree (config, preds, trajectory, eval logs +
+  report, metrics, manifest); MLflow run logged under `swe-bench-eval`
+
+## Reproducing / rerunning by run_id
+
+Trigger again with an explicit `run_id` to reproduce a named run:
+
+```json
+{"run_id": "Eval_Test", "task_slice": "0:1", "workers": 1}
+```
+
+`prepare_run` clears the `run-agent/` and `run-eval/` subdirs on re-prepare, so a rerun of the
+same `run_id` starts clean rather than folding stale reports into new metrics. All inputs needed
+to reproduce a result are captured in that run's `config.json`.
+
+## Notes and caveats
+
+- **Apple Silicon (arm64):** SWE-bench's prebuilt eval images are amd64-only; arm64 support is
+  experimental. We pass `--namespace ''` so eval images build locally as native arm64. The agent's
+  own task container pulls the amd64 SWE-bench image and runs under emulation. Locally-built arm64
+  environments can differ subtly from the canonical amd64 environments, so a small number of
+  instances may resolve differently than the official leaderboard. Canonical results come from an
+  amd64 VM (set `eval_namespace=swebench` there to pull prebuilt images).
+- **`uv run`:** agent/eval commands are invoked via `uv run` so they resolve in the project venv
+  regardless of how Airflow itself was launched (matches the provided example DAG).
+- **Cost:** mini-swe-agent's cost tracker does not track Nebius spend (`MSWEA_COST_TRACKING=ignore_errors`),
+  so a `$0.00` display is "untracked," not "free."
+- **Disk:** SWE-bench eval needs significant free disk (~120 GB recommended) for cached images.
+
+## Tests
+
+`uv run pytest` — 17 unit tests covering config resolution, run-dir/manifest/metrics, agent and
+eval command builders, MLflow logging (real file store), and DAG load (DagBag). Subprocess-driven
+functions are exercised by the live runs documented above.
+
+## Remaining (Phase B, production-style)
+
+Docker Compose deployment (Airflow + MLflow + MinIO), `DockerOperator` execution using the
+provided `Dockerfile`, and upload of `runs/<run-id>/` to S3-compatible object storage (MinIO),
+with the artifact URI logged to MLflow.
