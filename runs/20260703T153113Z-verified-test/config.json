@@ -1,0 +1,12 @@
+{
+  "agent_config": "/opt/mini-swe-agent/src/minisweagent/config/benchmarks/swebench.yaml",
+  "cost_limit": 0,
+  "dataset_name": "princeton-nlp/SWE-bench_Verified",
+  "eval_namespace": "swebench",
+  "model": "nebius/moonshotai/Kimi-K2.6",
+  "run_id": "20260703T153113Z-verified-test",
+  "split": "test",
+  "subset": "verified",
+  "task_slice": "0:1",
+  "workers": 1
+}
