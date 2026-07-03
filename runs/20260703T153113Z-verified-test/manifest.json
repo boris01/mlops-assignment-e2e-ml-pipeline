@@ -1,0 +1,19 @@
+{
+  "artifact_uri": "s3://mlops-artifacts/runs/20260703T153113Z-verified-test",
+  "files": {
+    "config": "config.json",
+    "eval_logs": "run-eval/logs",
+    "eval_reports": "run-eval/reports",
+    "metrics": "metrics.json",
+    "preds": "run-agent/preds.json",
+    "trajectories": [
+      "run-agent/astropy__astropy-12907/astropy__astropy-12907.traj.json"
+    ]
+  },
+  "metrics_summary": {
+    "resolve_rate": 1.0,
+    "resolved_count": 1,
+    "total": 1
+  },
+  "run_id": "20260703T153113Z-verified-test"
+}

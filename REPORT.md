@@ -25,7 +25,9 @@ be tested without Airflow and reused across deployment styles.
 
 `pipeline/` modules: `config.py` (resolve params, derive dataset), `paths.py` (run dir, manifest,
 metrics write), `agent.py` (mini-swe-agent command + runner), `evaluation.py` (SWE-bench command +
-runner + output collection), `metrics.py` (parse reports), `tracking.py` (MLflow).
+runner + output collection), `metrics.py` (parse reports), `tracking.py` (MLflow), `storage.py`
+(S3/MinIO upload). A second DAG, `evaluate_agent_docker`, runs the same steps via `DockerOperator`
+for the production-style deployment (see below).
 
 The DAG, helper signatures (`build_run_config`, `prepare_run_dir`, `run_agent_batch`,
 `run_swebench_eval`, `collect_metrics`, `log_mlflow_run`), and task names follow the README's
@@ -104,18 +106,25 @@ Multiple runs are therefore directly comparable in the MLflow UI.
 
 > Screenshots: `screenshots/airflow_dag.png`, `screenshots/mlflow_runs.png` (add after a UI run).
 
-## Completed run
+## Completed run (committed sample)
 
-Triggered via the Airflow UI; all four tasks green.
+The production-style `evaluate_agent_docker` DAG, triggered on the amd64 VM; all four tasks green.
 
-- **run_id:** `Eval_Test`
+- **run_id:** `20260703T153113Z-verified-test` — committed under `runs/` as the reproducible sample
 - **config:** `subset=verified`, `split=test`, `workers=1`, `task_slice=0:1`,
-  `model=nebius/moonshotai/Kimi-K2.6`, `eval_namespace=""` (local arm64 build)
+  `model=nebius/moonshotai/Kimi-K2.6`, `eval_namespace=swebench` (amd64 prebuilt eval images)
 - **instance:** `astropy__astropy-12907`
 - **result:** **resolved 1 / 1** (resolve_rate 1.0) — the model's patch passed the real
   FAIL_TO_PASS + PASS_TO_PASS unit tests
-- **artifacts:** complete `runs/Eval_Test/` tree (config, preds, trajectory, eval logs +
-  report, metrics, manifest); MLflow run logged under `swe-bench-eval`
+- **artifacts:** complete `runs/20260703T153113Z-verified-test/` tree committed to the repo; the
+  full copy is uploaded to `s3://mlops-artifacts/runs/20260703T153113Z-verified-test/` (MinIO)
+- **tracking:** MLflow experiment `swe-bench-eval`, run logged with params, metrics
+  (`resolve_rate=1.0`), and the `s3://` `artifact_uri` tag
+- **evidence:** `screenshots/airflow_dag.png`, `screenshots/mlflow_runs.png`,
+  `screenshots/object_storage_artifacts.png`
+
+An earlier standalone run (`evaluate_agent`, run_id `Eval_Test`) validated the non-Docker path on
+the dev machine (arm64, local eval build).
 
 ## Reproducing / rerunning by run_id
 
@@ -145,12 +154,76 @@ to reproduce a result are captured in that run's `config.json`.
 
 ## Tests
 
-`uv run pytest` — 17 unit tests covering config resolution, run-dir/manifest/metrics, agent and
-eval command builders, MLflow logging (real file store), and DAG load (DagBag). Subprocess-driven
-functions are exercised by the live runs documented above.
+`uv run pytest` — 22 unit tests covering config resolution (incl. `agent_config` default + nullable
+params), run-dir/manifest/metrics, agent and eval command builders (both `uv run` and container
+`runner` modes), the S3 key logic, MLflow logging (real file store), and load of both DAGs (DagBag).
+Subprocess/DockerOperator paths are exercised by the live runs documented above.
 
-## Remaining (Phase B, production-style)
+## Production-Style Deployment (Phase B)
 
-Docker Compose deployment (Airflow + MLflow + MinIO), `DockerOperator` execution using the
-provided `Dockerfile`, and upload of `runs/<run-id>/` to S3-compatible object storage (MinIO),
-with the artifact URI logged to MLflow.
+A second DAG, `evaluate_agent_docker` (`dags/evaluate_agent_docker.py`), runs the agent and
+evaluation as **`DockerOperator`** tasks against the project image, deployed via **Docker
+Compose** with **MLflow** and **MinIO** (S3-compatible storage). `prepare_run` and
+`summarize_and_log` stay Python tasks (file + MLflow + S3 work on the Airflow side).
+
+**Execution isolation (DockerOperator + docker-out-of-docker).** SWE-bench launches its own
+Docker containers, so each task container mounts the host Docker socket and runs sibling
+containers on the host daemon. To keep bind paths consistent, the host repo is mounted at the
+**same absolute path** (`$HOST_PROJECT`, default `/opt/project`) inside the task container, and
+`working_dir` matches. The mini-swe-agent clone is **mounted** into the agent container (not
+baked into the image), and `agent_config` points at the mounted clone path — consistent with the
+standalone path's use of the clone. Command builders take a `runner` argument: `uv run` for the
+standalone path, empty for the container (the image already has the venv on PATH).
+
+**Compose stack.** `docker compose` merges the official Airflow base with our committed
+`docker-compose.override.yaml`, which adds:
+- **MinIO** + a one-shot `minio-init` that creates `$ARTIFACT_BUCKET`,
+- an **MLflow** server backed by MinIO (`docker/mlflow.Dockerfile`),
+- our env (`NEBIUS_API_KEY`, `MLFLOW_*`, `AWS_*`, `ARTIFACT_BUCKET`, `HOST_PROJECT`,
+  `EVALUATE_AGENT_IMAGE`) plus the project bind mount and Docker socket, injected into the
+  Airflow services.
+
+**Artifact upload.** `summarize_and_log` uploads the full `runs/<run-id>/` tree to
+`s3://$ARTIFACT_BUCKET/runs/<run-id>/` via `pipeline/storage.py:upload_run_dir` and logs that
+`s3://` URI to MLflow as the run's `artifact_uri` (log-and-continue, so an upload/tracking outage
+never loses the local run folder).
+
+### Deploy on the VM
+
+The repo is self-contained: the official Airflow compose base (`docker-compose.yaml`) is vendored
+and auto-merged with `docker-compose.override.yaml` — no `curl` step needed.
+
+```bash
+# repo at $HOST_PROJECT; mini-swe-agent cloned as a sibling; user in the `docker` group
+cp .env.example .env
+#   set NEBIUS_API_KEY, and:
+#     HOST_PROJECT=$(pwd)
+#     AIRFLOW_UID=$(id -u)
+#     DOCKER_GID=$(getent group docker | cut -d: -f3)
+docker build -t evaluate-agent:latest .                                       # DockerOperator image
+docker build -f docker/airflow.Dockerfile -t evaluate-agent-airflow:latest .  # Airflow image
+docker compose up -d                                                          # base + override
+```
+Airflow `:8080` (`airflow`/`airflow`), MLflow `:5001`, MinIO console `:9001`
+(`minioadmin`/`minioadmin`). Trigger `evaluate_agent_docker` with `{"task_slice":"0:1","workers":1}`
+(amd64 keeps `eval_namespace=swebench`). Verify: `runs/<run-id>/` on the host, the objects under
+`mlops-artifacts/runs/<run-id>/` in MinIO, and the run (with the `s3://` artifact URI) in MLflow.
+
+**Deployment specifics (settled during the live deploy):**
+- **Custom Airflow image** (`docker/airflow.Dockerfile`, set via `AIRFLOW_IMAGE_NAME`): the Docker
+  provider is installed under Airflow's constraints, plus `mlflow-skinny` + `boto3`. Installing
+  these at boot via `_PIP_ADDITIONAL_REQUIREMENTS` clobbers `celery`/`kombu` and crashes the worker.
+  `swebench`/`mini-swe-agent` are deliberately NOT on the Airflow side — they run in the
+  DockerOperator image.
+- **Docker socket access:** the worker gets `group_add: [$DOCKER_GID]` so DockerOperator can use the
+  mounted socket (docker-out-of-docker).
+- **PYTHONPATH:** the repo root (`$HOST_PROJECT`) is on `PYTHONPATH` so the DAGs import `pipeline`
+  (the base compose only mounts `dags/`).
+- **MLflow host port** is published on `5001` (host 5000 is often taken); the internal address the
+  worker uses stays `mlflow:5000`.
+- **MLflow allowed hosts:** MLflow >=3.5 DNS-rebinding protection needs `MLFLOW_SERVER_ALLOWED_HOSTS`
+  to include the `mlflow` service name (worker) **and** `localhost:5001` (browser UI).
+
+**Status:** verified **end-to-end on the amd64 VM** — `evaluate_agent_docker` ran all four tasks
+green, launching the agent/eval as sibling containers via the mounted socket, producing the
+committed sample run, its MinIO objects, and the MLflow entry (see *Completed run* + screenshots).
