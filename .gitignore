@@ -19,3 +19,7 @@ mlruns/
 
 # SWE-bench harness writes its summary <model>.<run_id>.json to the repo root (cwd)
 /*__*.json
+
+# Airflow compose runtime dirs (created by the official base)
+config/
+plugins/
