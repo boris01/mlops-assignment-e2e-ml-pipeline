@@ -1,5 +1,7 @@
 # Report: Configurable Airflow Evaluation Pipeline for Coding-Agent Experiments
 
+**Done by:** Boris Shterenberg and Gregory Jerusalemsky.
+
 Turns the ad-hoc `scripts/*.sh` into a configurable, reproducible Airflow pipeline that runs
 mini-swe-agent on a SWE-bench subset, evaluates the patches, writes a structured run folder, and
 logs the run to MLflow.
