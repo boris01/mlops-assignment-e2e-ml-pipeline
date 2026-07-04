@@ -10,6 +10,8 @@
 
 **Inspired by**: https://github.com/GlebBerjoskin/mlops-assignment
 
+**Submitted by**: Boris Shterenberg and Gregory Jerusalemsky.
+
 ---
 
 ## Legend
