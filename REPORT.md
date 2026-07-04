@@ -4,6 +4,33 @@ Turns the ad-hoc `scripts/*.sh` into a configurable, reproducible Airflow pipeli
 mini-swe-agent on a SWE-bench subset, evaluates the patches, writes a structured run folder, and
 logs the run to MLflow.
 
+## Deliverables map
+
+Where each README deliverable lives (sample run id: `20260703T153113Z-verified-test`).
+
+**Minimum Working Submission**
+
+| Deliverable | Location |
+|---|---|
+| Configurable DAG (`prepare_run/run_agent/run_eval/summarize_and_log`) | `dags/evaluate_agent.py` |
+| Airflow params (`split/subset/workers` + `model/task_slice/run_id/cost_limit/eval_namespace/agent_config`) | `dags/evaluate_agent.py` (`params={...}`) |
+| Agent wrapper → `runs/<id>/run-agent/` | `pipeline/agent.py` (`build_agent_command`, `run_agent_batch`) |
+| Eval wrapper → `runs/<id>/run-eval/` | `pipeline/evaluation.py` (`build_eval_command`, `run_swebench_eval`) |
+| Reproducible run folder | `runs/20260703T153113Z-verified-test/` (`config.json`, `run-agent/preds.json` + trajectory, `run-eval/logs`+`reports`, `metrics.json`, `manifest.json`) |
+| MLflow run (params, metrics, run_id, artifact URI) | `runs/20260703T153113Z-verified-test/mlflow_run.json` + `screenshots/mlflow_runs.png` |
+| Report | this file (`REPORT.md`) |
+
+**Production-Style Additions**
+
+| Deliverable | Location |
+|---|---|
+| `Dockerfile` (agent/eval image) | `Dockerfile` |
+| DockerOperator DAG | `dags/evaluate_agent_docker.py` |
+| Docker Compose deployment | `docker-compose.yaml` (vendored base) + `docker-compose.override.yaml` + `docker/airflow.Dockerfile`, `docker/mlflow.Dockerfile` |
+| `.env.example` | `.env.example` |
+| S3/Object-Storage upload | `pipeline/storage.py` (`upload_run_dir`); URI in `runs/<id>/manifest.json` |
+| Screenshots | `screenshots/airflow_dag.png`, `screenshots/mlflow_runs.png`, `screenshots/object_storage_artifacts.png` |
+
 ## Architecture
 
 One Airflow DAG, `evaluate_agent` (`dags/evaluate_agent.py`), with four TaskFlow tasks in a
