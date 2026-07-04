@@ -1,0 +1,104 @@
+{
+    "run": {
+        "info": {
+            "run_uuid": "4591e3cd3b254329b2210113bb3545d5",
+            "experiment_id": "1",
+            "run_name": "20260703T153113Z-verified-test",
+            "user_id": "default",
+            "status": "FINISHED",
+            "start_time": 1783094050093,
+            "end_time": 1783094050304,
+            "artifact_uri": "s3://mlops-artifacts/mlflow/1/4591e3cd3b254329b2210113bb3545d5/artifacts",
+            "lifecycle_stage": "active",
+            "run_id": "4591e3cd3b254329b2210113bb3545d5"
+        },
+        "data": {
+            "metrics": [
+                {
+                    "key": "resolved_count",
+                    "value": 1.0,
+                    "timestamp": 1783094050176,
+                    "step": 0
+                },
+                {
+                    "key": "total",
+                    "value": 1.0,
+                    "timestamp": 1783094050176,
+                    "step": 0
+                },
+                {
+                    "key": "resolve_rate",
+                    "value": 1.0,
+                    "timestamp": 1783094050176,
+                    "step": 0
+                }
+            ],
+            "params": [
+                {
+                    "key": "run_id",
+                    "value": "20260703T153113Z-verified-test"
+                },
+                {
+                    "key": "split",
+                    "value": "test"
+                },
+                {
+                    "key": "subset",
+                    "value": "verified"
+                },
+                {
+                    "key": "dataset_name",
+                    "value": "princeton-nlp/SWE-bench_Verified"
+                },
+                {
+                    "key": "workers",
+                    "value": "1"
+                },
+                {
+                    "key": "model",
+                    "value": "nebius/moonshotai/Kimi-K2.6"
+                },
+                {
+                    "key": "task_slice",
+                    "value": "0:1"
+                },
+                {
+                    "key": "cost_limit",
+                    "value": "0"
+                },
+                {
+                    "key": "eval_namespace",
+                    "value": "swebench"
+                },
+                {
+                    "key": "agent_config",
+                    "value": "/opt/mini-swe-agent/src/minisweagent/config/benchmarks/swebench.yaml"
+                }
+            ],
+            "tags": [
+                {
+                    "key": "mlflow.user",
+                    "value": "default"
+                },
+                {
+                    "key": "mlflow.source.name",
+                    "value": "-c"
+                },
+                {
+                    "key": "mlflow.source.type",
+                    "value": "LOCAL"
+                },
+                {
+                    "key": "mlflow.runName",
+                    "value": "20260703T153113Z-verified-test"
+                },
+                {
+                    "key": "artifact_uri",
+                    "value": "s3://mlops-artifacts/runs/20260703T153113Z-verified-test"
+                }
+            ]
+        },
+        "inputs": {},
+        "outputs": {}
+    }
+}

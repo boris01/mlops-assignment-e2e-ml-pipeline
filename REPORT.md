@@ -119,7 +119,9 @@ The production-style `evaluate_agent_docker` DAG, triggered on the amd64 VM; all
 - **artifacts:** complete `runs/20260703T153113Z-verified-test/` tree committed to the repo; the
   full copy is uploaded to `s3://mlops-artifacts/runs/20260703T153113Z-verified-test/` (MinIO)
 - **tracking:** MLflow experiment `swe-bench-eval`, run logged with params, metrics
-  (`resolve_rate=1.0`), and the `s3://` `artifact_uri` tag
+  (`resolve_rate=1.0`), and the `s3://` `artifact_uri` tag. The run exported from the tracking
+  server is committed at `runs/20260703T153113Z-verified-test/mlflow_run.json` (params, metrics,
+  `run_id`, and `artifact_uri` — the machine-readable proof of the logged run).
 - **evidence:** `screenshots/airflow_dag.png`, `screenshots/mlflow_runs.png`,
   `screenshots/object_storage_artifacts.png`
 
